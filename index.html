@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANIME WATCHER.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#07070a;
+    --panel:#111018;
+    --panel-2:#1a1825;
+    --line:#2a2638;
+    --paper:#f3eee2;
+    --magenta:#ff2f6d;
+    --yellow:#ffd23f;
+    --muted:#8b869e;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:var(--void); color:var(--paper); font-family:'Space Grotesk', sans-serif; overflow-x:hidden;}
+  ::selection{background:var(--magenta); color:var(--void);}
+
+  /* ---- texture layers ---- */
+  .scanlines{
+    position:fixed; inset:0; pointer-events:none; z-index:50; mix-blend-mode:overlay; opacity:.3;
+    background:repeating-linear-gradient(to bottom, rgba(255,255,255,.04) 0px, rgba(255,255,255,.04) 1px, transparent 2px, transparent 3px);
+  }
+
+  /* ---- top bar & thin search ---- */
+  header{
+    position:sticky; top:0; z-index:40;
+    background: rgba(7, 7, 10, 0.95); backdrop-filter: blur(10px);
+    border-bottom:1px solid var(--line);
+    display: flex; flex-direction: column;
+  }
+  .header-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px clamp(15px, 4vw, 40px);
+    gap: 15px;
+  }
+  .logo{
+    font-family:'Anton', sans-serif; font-size:20px; letter-spacing:1px; color:var(--paper);
+    display:flex; align-items:baseline; gap:4px; white-space: nowrap;
+  }
+  .logo span{color:var(--magenta);}
+  
+  .search-container {
+    position: relative; width: 100%; max-width: 400px;
+  }
+  .search-input {
+    background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--paper); font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; padding: 8px 16px 8px 32px; border-radius: 20px;
+    outline: none; transition: 0.2s ease; width: 100%; height: 34px;
+  }
+  .search-input:focus { border-color: var(--magenta); background: var(--panel); }
+  .search-input::placeholder { color: var(--muted); }
+  .search-icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; pointer-events: none; opacity: 0.6;
+  }
+  
+  .chan-tag{
+    font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted);
+    border:1px solid var(--line); padding:4px 8px; border-radius:2px; letter-spacing:1px;
+    white-space: nowrap; display: flex; align-items: center;
+  }
+  .live-dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--magenta); margin-right:6px; animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%,100%{opacity:1} 50%{opacity:.25}}
+
+  /* ---- Tab Navigation ---- */
+  .nav-tabs {
+    display: flex; gap: 5px; padding: 0 clamp(15px, 4vw, 40px);
+    overflow-x: auto; scrollbar-width: none; border-top: 1px solid rgba(255,255,255,0.02);
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .tab-btn {
+    background: transparent; border: none; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1px; padding: 12px 16px; cursor: pointer; transition: 0.2s;
+    border-bottom: 2px solid transparent; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--paper); }
+  .tab-btn.active { color: var(--magenta); border-bottom-color: var(--magenta); font-weight: 700; }
+
+  /* ---- View Container (Single Page App style) ---- */
+  .view-section { display: none; animation: fadeIn 0.3s ease; }
+  .view-section.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ---- hero ---- */
+  .hero{
+    padding:clamp(40px,8vw,80px) clamp(15px,4vw,40px);
+    border-bottom:1px solid var(--line);
+    background: radial-gradient(ellipse at 80% 0%, rgba(255,47,109,.12), transparent 55%);
+  }
+  .hero-title{ font-family:'Anton', sans-serif; font-size:clamp(42px,7vw,80px); line-height:1; text-transform:uppercase; }
+  .hero-sub{ margin-top:16px; max-width:50ch; color:var(--muted); font-size:15px; line-height:1.6; }
+
+  /* ---- grid & cards ---- */
+  .lineup{ padding:40px clamp(15px,4vw,40px) 60px; min-height: 60vh;}
+  .lineup-head{ margin-bottom:25px; }
+  .lineup-head h2{ font-family:'Anton', sans-serif; font-size:28px; text-transform:uppercase; letter-spacing:1px; }
+  
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:20px; }
+  
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:16px; transition:transform .2s, border-color .2s; cursor: pointer;
+    display:flex; flex-direction:column; position: relative; overflow: hidden;
+  }
+  .card:hover{ transform:translateY(-4px); border-color:var(--magenta); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+  
+  .card-img-wrap { width: 100%; aspect-ratio: 3/4; overflow: hidden; border-radius: 4px; margin-bottom: 12px; background: var(--panel-2);}
+  .card-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
+  .card:hover .card-img-wrap img { transform: scale(1.05); }
+
+  .badge{ font-family:'JetBrains Mono', monospace; font-size:9px; padding:3px 6px; border-radius:2px; font-weight: 700;}
+  .badge.dub{ background:rgba(255,47,109,.15); color:var(--magenta); border:1px solid var(--magenta); position: absolute; top: 25px; right: 25px; z-index: 2; backdrop-filter: blur(4px);}
+
+  .card h3{
+    font-family:'Space Grotesk', sans-serif; font-weight: 700; font-size:16px; margin-top:5px; line-height:1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card .studio{ margin-top:4px; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); }
+
+  /* ---- Modal ---- */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(7, 7, 10, 0.95); backdrop-filter: blur(5px);
+    z-index: 9999; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: 0.3s ease; padding: 20px;
+  }
+  .modal-overlay.active { opacity: 1; pointer-events: all; }
+  .modal-content {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; width: 100%; max-width: 650px; 
+    padding: 30px; position: relative; transform: scale(0.95); transition: 0.3s ease; max-height: 90vh; overflow-y: auto;
+  }
+  .modal-overlay.active .modal-content { transform: scale(1); border-color: var(--magenta); box-shadow: 0 0 30px rgba(255,47,109,0.15);}
+  .modal-close { position: absolute; top: 15px; right: 20px; font-size: 28px; color: var(--muted); cursor: pointer; transition: 0.2s; line-height: 1;}
+  .modal-close:hover { color: var(--magenta); }
+  
+  .download-btn-large {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 14px; background: var(--magenta); color: var(--paper);
+    text-decoration: none; font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+    font-size: 15px; border-radius: 6px; margin-top: 20px; transition: 0.2s; text-transform: uppercase;
+  }
+  .download-btn-large:hover { background: #e01b5c; transform: translateY(-2px); }
+  
+  .loader { display: none; text-align: center; padding: 40px; font-family: 'JetBrains Mono', monospace; color: var(--magenta); }
+
+  @media (max-width:600px){
+    .header-top { flex-wrap: wrap; }
+    .search-container { max-width: 100%; order: 3; margin-top: 5px;}
+    .chan-tag { display: none; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 12px;}
+    .card { padding: 10px; }
+    .card h3 { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<header>
+  <div class="header-top">
+    <div class="logo">ANIME WATCHER<span>.</span></div>
+    
+    <div class="search-container">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search any anime in the world..." class="search-input" autocomplete="off">
+    </div>
+
+    <div class="chan-tag"><span class="live-dot"></span>HINDI DUB HUB</div>
+  </div>
+  
+  <nav class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('home')">Live & Trending</button>
+    <button class="tab-btn" onclick="switchTab('downloadable')">Downloadable</button>
+    <button class="tab-btn" onclick="switchTab('romantic')">Romantic</button>
+    <button class="tab-btn" onclick="switchTab('action')">Action & Thrillers</button>
+  </nav>
+</header>
+
+<!-- SEARCH RESULTS VIEW -->
+<section id="view-search" class="view-section lineup">
+  <div class="lineup-head">
+    <h2 style="color: var(--magenta);">Search Results</h2>
+    <p id="search-meta" style="color: var(--muted); font-family: monospace; font-size: 12px; margin-top: 5px;">Showing global API results...</p>
+  </div>
+  <div id="search-loader" class="loader">Fetching from Global Database...</div>
+  <div class="grid" id="search-grid"></div>
+</section>
+
+<!-- HOME VIEW -->
+<section id="view-home" class="view-section active">
+  <div class="hero">
+    <h1 class="hero-title">Your Journey<br>Starts Here</h1>
+    <p class="hero-sub">Search for any anime globally or browse our curated trending lists. Official artwork, full details, and direct access.</p>
+  </div>
+  <div class="lineup">
+    <div class="lineup-head">
+      <h2>Currently Airing (Top)</h2>
+    </div>
+    <div class="grid" id="home-grid"></div>
+  </div>
+</section>
+
+<!-- DOWNLOADABLE VIEW -->
+<section id="view-downloadable" class="view-section lineup">
+  <div class="lineup-head">
+    <h2>Downloadable Library</h2>
+  </div>
+  <div class="grid" id="downloadable-grid"></div>
+</section>
+
+<!-- ROMANTIC VIEW -->
+<section id="view-romantic" class="view-section lineup">
+  <div class="lineup-head">
+    <h2>Romantic Collection</h2>
+  </div>
+  <div class="grid" id="romantic-grid"></div>
+</section>
+
+<!-- ACTION VIEW -->
+<section id="view-action" class="view-section lineup">
+  <div class="lineup-head">
+    <h2>Action & Thrillers</h2>
+  </div>
+  <div class="grid" id="action-grid"></div>
+</section>
+
+<div class="modal-overlay" id="detailsModal" onclick="closeDetailsModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <span class="modal-close" onclick="forceCloseModal()">&times;</span>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+      <div style="flex: 1 1 150px; max-width: 180px;">
+        <img id="modalImg" src="" alt="Poster" style="width: 100%; border-radius: 6px; display: block;">
+      </div>
+      <div style="flex: 2 1 250px;">
+        <h2 id="modalTitle" style="font-family: 'Anton'; font-size: 26px; line-height: 1.1; margin-bottom: 5px;">Title</h2>
+        <p id="modalSub" style="font-family: 'JetBrains Mono'; font-size: 12px; color: var(--yellow); margin-bottom: 15px;"></p>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 10px; background: var(--panel-2); padding: 10px; border-radius: 4px;">
+          <div id="modalEps"></div>
+          <div id="modalScore"></div>
+          <div id="modalStatus"></div>
+          <div id="modalYear"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div style="margin-top: 20px;">
+      <p id="modalSynopsis" style="font-size: 13px; line-height: 1.6; color: #cdc8da; max-height: 150px; overflow-y: auto; padding-right: 10px;"></p>
+    </div>
+    
+    <a href="#" id="modalDownloadBtn" target="_blank" rel="noopener noreferrer" class="download-btn-large">
+      📥 Download Anime for Free
+    </a>
+    <div id="modalNoDownloadMsg" style="display:none; text-align:center; padding:12px; color:var(--muted); font-family:'JetBrains Mono'; font-size:11px; background: rgba(255,255,255,0.05); margin-top:20px; border-radius:4px;">
+       🚨 Download link not available yet for this title in your code.
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// 🌟 ADD YOUR DOWNLOAD LINKS HERE 🌟
+// ==========================================
+// If the API finds an anime and the name matches exactly (or closely) 
+// to what you write here, the Download button will activate!
+
+const myDownloadLinks = {
+  "Demon Slayer": "https://hubcloud.cx/drive/d4dd611g5dz6wa1",
+  "Solo Leveling": "https://hubcloud.cx/drive/ehtmueh5ecltgqi",
+  "Naruto": "#",
+  "Death Note": "#",
+  "Jujutsu Kaisen": "#",
+  "Attack on Titan": "#"
+};
+
+// ==========================================
+// HARDCODED SECTIONS DATA (For tabs)
+// ==========================================
+const downloadableData = [
+  { title: "Demon Slayer: Kimetsu no Yaiba", img: "https://cdn.myanimelist.net/images/anime/1286/99889.jpg", studio: "ufotable", score: "8.7", eps: "26", status: "Finished", syn: "Tanjiro resolves to become a demon slayer..." },
+  { title: "Solo Leveling", img: "https://cdn.myanimelist.net/images/anime/1105/138401.jpg", studio: "A-1 Pictures", score: "8.5", eps: "12", status: "Finished", syn: "Sung Jin-Woo is known as the weakest Hunter of all mankind..." }
+];
+
+const romanticData = [
+  { title: "Kaguya-sama: Love is War", img: "https://cdn.myanimelist.net/images/anime/1111/105269.jpg", studio: "A-1 Pictures", score: "8.4", eps: "12", status: "Finished", syn: "Miyuki and Kaguya like each other, but their pride prevents them from confessing!" },
+  { title: "Horimiya", img: "https://cdn.myanimelist.net/images/anime/1695/111486.jpg", studio: "CloverWorks", score: "8.2", eps: "13", status: "Finished", syn: "A secret life is the one thing they have in common." }
+];
+
+const actionData = [
+  { title: "Death Note", img: "https://cdn.myanimelist.net/images/anime/9/9453.jpg", studio: "Madhouse", score: "8.6", eps: "37", status: "Finished", syn: "A shinigami can kill any person—provided they see their victim's face and write their name in a notebook." },
+  { title: "Tokyo Ghoul", img: "https://cdn.myanimelist.net/images/anime/5/64449.jpg", studio: "Studio Pierrot", score: "7.8", eps: "12", status: "Finished", syn: "Tokyo has become a cruel city—where vicious creatures called ghouls exist." }
+];
+
+// Global Memory for clicked cards
+let globalAnimeData = {};
+
+// ---- Tab Switching Logic ----
+function switchTab(tabId) {
+  // Hide all sections
+  document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+  // Update buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  
+  // Show target
+  document.getElementById(`view-${tabId}`).classList.add('active');
+  
+  // Find button and make active
+  const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.innerText.toLowerCase().includes(tabId.split('-')[0]));
+  if(targetBtn) targetBtn.classList.add('active');
+  
+  // Clear search if leaving search tab
+  if(tabId !== 'search') {
+      document.getElementById('searchInput').value = '';
+  }
+}
+
+// ---- Helper functions ----
+function getDownloadLink(title) {
+  for (const [key, link] of Object.entries(myDownloadLinks)) {
+    if (title.toLowerCase().includes(key.toLowerCase()) && link !== "#") return link;
+  }
+  return null;
+}
+
+function generateCardId() {
+    return 'id_' + Math.random().toString(36).substr(2, 9);
+}
+
+// ---- Render Engine ----
+function renderCards(dataArray, containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  
+  dataArray.forEach(item => {
+    const uniqueId = generateCardId();
+    // Save to global memory for modal
+    globalAnimeData[uniqueId] = {
+        title: item.title, image: item.img, studio: item.studio || 'Unknown', 
+        score: item.score || 'N/A', eps: item.eps || '?', status: item.status || 'Unknown', 
+        synopsis: item.syn || 'No synopsis available.', year: item.year || '-',
+        dlLink: getDownloadLink(item.title)
+    };
+
+    container.innerHTML += `
+      <div class="card" onclick="openModal('${uniqueId}')">
+        <div class="badge dub">HINDI DUB</div>
+        <div class="card-img-wrap"><img src="${item.img}" alt="${item.title}" loading="lazy"></div>
+        <h3 title="${item.title}">${item.title}</h3>
+        <div class="studio">★ ${item.score || 'N/A'} • ${item.status}</div>
+      </div>
+    `;
+  });
+}
+
+// ---- API Integrations (Jikan v4) ----
+async function fetchHomeAPI() {
+  try {
+    const res = await fetch('https://api.jikan.moe/v4/top/anime?filter=airing&limit=10');
+    const data = await res.json();
+    const formatted = data.data.map(a => ({
+        title: a.title_english || a.title, img: a.images.jpg.large_image_url, 
+        studio: a.studios[0]?.name, score: a.score, eps: a.episodes, 
+        status: a.status, syn: a.synopsis, year: a.year
+    }));
+    renderCards(formatted, 'home-grid');
+  } catch(e) {
+    document.getElementById('home-grid').innerHTML = '<p>Error loading Live API.</p>';
+  }
+}
+
+let searchTimeout;
+document.getElementById('searchInput').addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    if(query.length < 3) return; // Wait for at least 3 characters
+
+    switchTab('search'); // Force open search tab
+    const grid = document.getElementById('search-grid');
+    const loader = document.getElementById('search-loader');
+    
+    grid.innerHTML = '';
+    loader.style.display = 'block';
+    document.getElementById('search-meta').innerText = `Searching global database for: "${query}"...`;
+
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(async () => {
+        try {
+            const res = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&sfw=true&limit=12`);
+            const data = await res.json();
+            
+            loader.style.display = 'none';
+            if(data.data.length === 0) {
+                grid.innerHTML = '<p style="color:var(--muted);">No anime found in the global database.</p>';
+                return;
+            }
+            
+            const formatted = data.data.map(a => ({
+                title: a.title_english || a.title, img: a.images.jpg.large_image_url, 
+                studio: a.studios[0]?.name, score: a.score, eps: a.episodes, 
+                status: a.status, syn: a.synopsis, year: a.year
+            }));
+            renderCards(formatted, 'search-grid');
+            document.getElementById('search-meta').innerText = `Found ${formatted.length} results.`;
+            
+        } catch(err) {
+            loader.style.display = 'none';
+            grid.innerHTML = '<p style="color:var(--magenta);">API Search failed. Rate limit exceeded.</p>';
+        }
+    }, 800); // 800ms debounce
+});
+
+// ---- Modal Control ----
+function openModal(id) {
+  const a = globalAnimeData[id];
+  document.getElementById('modalImg').src = a.image;
+  document.getElementById('modalTitle').innerText = a.title;
+  document.getElementById('modalSub').innerText = a.studio !== 'Unknown' ? `Studio: ${a.studio}` : '';
+  document.getElementById('modalEps').innerHTML = `<strong>Eps:</strong> ${a.eps}`;
+  document.getElementById('modalScore').innerHTML = `<strong>Score:</strong> ${a.score}`;
+  document.getElementById('modalStatus').innerHTML = `<strong>Status:</strong> ${a.status}`;
+  document.getElementById('modalYear').innerHTML = `<strong>Year:</strong> ${a.year}`;
+  document.getElementById('modalSynopsis').innerText = a.synopsis;
+  
+  const dlBtn = document.getElementById('modalDownloadBtn');
+  const noDlMsg = document.getElementById('modalNoDownloadMsg');
+  
+  if(a.dlLink) {
+      dlBtn.style.display = "flex"; dlBtn.href = a.dlLink; noDlMsg.style.display = "none";
+  } else {
+      dlBtn.style.display = "none"; noDlMsg.style.display = "block";
+  }
+
+  document.getElementById('detailsModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetailsModal(e) { if (e.target.id === 'detailsModal') forceCloseModal(); }
+function forceCloseModal() { document.getElementById('detailsModal').classList.remove('active'); document.body.style.overflow = 'auto'; }
+
+// ---- Bootup ----
+renderCards(downloadableData, 'downloadable-grid');
+renderCards(romanticData, 'romantic-grid');
+renderCards(actionData, 'action-grid');
+fetchHomeAPI();
+
+</script>
+</body>
+</html>
