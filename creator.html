@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creator Studio - ANIME WATCHER.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#07070a;
+    --panel:#111018;
+    --panel-2:#1a1825;
+    --line:#2a2638;
+    --paper:#f3eee2;
+    --magenta:#ff2f6d;
+    --yellow:#ffd23f;
+    --muted:#8b869e;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:var(--void); color:var(--paper); font-family:'Space Grotesk', sans-serif; overflow-x:hidden;}
+  ::selection{background:var(--magenta); color:var(--void);}
+
+  /* ---- texture layers ---- */
+  .scanlines{
+    position:fixed; inset:0; pointer-events:none; z-index:50; mix-blend-mode:overlay; opacity:.3;
+    background:repeating-linear-gradient(to bottom, rgba(255,255,255,.04) 0px, rgba(255,255,255,.04) 1px, transparent 2px, transparent 3px);
+  }
+
+  /* ---- top bar ---- */
+  header{
+    position:sticky; top:0; z-index:40;
+    background: rgba(7, 7, 10, 0.95); backdrop-filter: blur(10px);
+    border-bottom:1px solid var(--line);
+    display: flex; flex-direction: column;
+  }
+  .header-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px clamp(15px, 4vw, 40px);
+    gap: 15px;
+  }
+  .logo{
+    font-family:'Anton', sans-serif; font-size:20px; letter-spacing:1px; color:var(--paper);
+    display:flex; align-items:baseline; gap:4px; text-decoration:none;
+  }
+  .logo span{color:var(--magenta);}
+
+  .chan-tag{
+    font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--magenta);
+    border:1px solid var(--magenta); padding:4px 8px; border-radius:2px; letter-spacing:1px;
+    white-space: nowrap; display: flex; align-items: center; background: rgba(255,47,109,.15);
+  }
+
+  /* ---- container ---- */
+  .container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .title {
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(32px, 5vw, 48px);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    margin-bottom: 30px;
+    line-height: 1.6;
+  }
+
+  /* ---- form elements ---- */
+  .form-group {
+    margin-bottom: 25px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .form-group h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    margin-bottom: 15px;
+    color: var(--yellow);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .upload-area {
+    border: 2px dashed var(--line);
+    border-radius: 6px;
+    padding: 40px 20px;
+    text-align: center;
+    background: var(--panel-2);
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  .upload-area:hover, .upload-area.dragover {
+    border-color: var(--magenta);
+    background: rgba(255,47,109,0.05);
+  }
+  .upload-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+  .upload-text {
+    font-weight: 600;
+    margin-bottom: 5px;
+  }
+  .upload-hint {
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  textarea {
+    width: 100%;
+    height: 150px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 15px;
+    color: var(--paper);
+    font-family: 'Space Grotesk', sans-serif;
+    resize: vertical;
+    outline: none;
+    transition: 0.3s;
+  }
+  textarea:focus {
+    border-color: var(--magenta);
+  }
+
+  select {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px 15px;
+    color: var(--paper);
+    font-family: 'Space Grotesk', sans-serif;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+  }
+  select:focus {
+    border-color: var(--magenta);
+  }
+
+  .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .checkbox-label input {
+    accent-color: var(--magenta);
+    width: 18px;
+    height: 18px;
+  }
+
+  .btn-generate {
+    width: 100%;
+    padding: 16px;
+    background: var(--magenta);
+    color: var(--paper);
+    border: none;
+    border-radius: 6px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: 0.2s;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .btn-generate:hover {
+    background: #e01b5c;
+    transform: translateY(-2px);
+  }
+  .btn-generate:disabled {
+    background: var(--line);
+    color: var(--muted);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ---- processing state ---- */
+  .processing-container {
+    display: none;
+    margin-top: 30px;
+    background: var(--panel);
+    border: 1px solid var(--magenta);
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+  }
+  .progress-bar-wrap {
+    width: 100%;
+    height: 10px;
+    background: var(--panel-2);
+    border-radius: 5px;
+    margin: 20px 0;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--magenta);
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px var(--magenta);
+  }
+  .status-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--yellow);
+    margin-bottom: 10px;
+  }
+  .log-box {
+    background: var(--void);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 10px;
+    height: 100px;
+    overflow-y: auto;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .log-box p { margin-bottom: 5px; }
+
+  /* ---- result state ---- */
+  .result-container {
+    display: none;
+    margin-top: 30px;
+    background: rgba(46, 204, 113, 0.1);
+    border: 1px solid #2ecc71;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+  }
+  .result-container h3 {
+    color: #2ecc71;
+    margin-bottom: 15px;
+  }
+
+  @media (max-width:600px){
+    .header-top { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<header>
+  <div class="header-top">
+    <a href="index.html" class="logo">ANIME WATCHER<span>.</span></a>
+    <div class="chan-tag">CREATOR STUDIO</div>
+  </div>
+</header>
+
+<div class="container">
+  <h1 class="title">AI Anime Explanation Creator</h1>
+  <p class="subtitle">Upload raw video, write your Hindi script, and let our AI generate realistic voices, sync word-to-word, and auto-edit your 50-minute masterpieces like a professional.</p>
+
+  <div id="creator-form">
+    <!-- Upload Area -->
+    <div class="form-group">
+      <h3>1. Upload Raw Video (Up to 50 mins)</h3>
+      <div class="upload-area" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon">🎥</div>
+        <div class="upload-text">Click to browse or drag & drop video file</div>
+        <div class="upload-hint">MP4, MOV, MKV. Max duration: 50 minutes. Max size: 2GB.</div>
+        <input type="file" id="file-input" style="display:none" accept="video/*">
+        <div id="file-name" style="margin-top: 15px; color: var(--magenta); font-family: 'JetBrains Mono'; font-size: 12px; display: none;"></div>
+      </div>
+    </div>
+
+    <!-- Script Area -->
+    <div class="form-group">
+      <h3>2. Hindi Explanation Script</h3>
+      <textarea id="script-input" placeholder="Type or paste your Hindi explanation script here...\nExample: आज हम बात करने वाले हैं 'Demon Slayer' के बारे में..."></textarea>
+    </div>
+
+    <!-- AI Voice Selection -->
+    <div class="form-group">
+      <h3>3. Realistic Hindi AI Voice</h3>
+      <select id="voice-select">
+        <option value="rahul">Rahul - Deep & Cinematic (Professional)</option>
+        <option value="neha">Neha - Energetic & Fast (Reviewer style)</option>
+        <option value="amit">Amit - Storyteller (Calm & Suspenseful)</option>
+        <option value="priya">Priya - Clear & Expressive (Standard)</option>
+      </select>
+    </div>
+
+    <!-- Editing Options -->
+    <div class="form-group">
+      <h3>4. Professional Auto-Editing Features</h3>
+      <div class="checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="opt-sync" checked>
+          <span><strong>Word-to-Word Sync:</strong> Perfectly align AI generated Hindi audio with video pacing and cuts.</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="opt-edit" checked>
+          <span><strong>Auto Video Editing:</strong> Automatically trim silent parts, add dynamic zooms, and insert transitions.</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="opt-bgm" checked>
+          <span><strong>Smart BGM Mix:</strong> Add cinematic background music that automatically ducks during speech.</span>
+        </label>
+      </div>
+    </div>
+
+    <button class="btn-generate" id="btn-generate" onclick="startGeneration()">
+      ⚡ Generate AI Explanation Video
+    </button>
+  </div>
+
+  <!-- Processing State -->
+  <div class="processing-container" id="processing-ui">
+    <h3 style="font-family:'Anton'; font-size:24px; margin-bottom:10px;">AI is working its magic...</h3>
+    <div class="status-text" id="status-text">Initializing GPUs...</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <div class="log-box" id="log-box"></div>
+  </div>
+
+  <!-- Result State -->
+  <div class="result-container" id="result-ui">
+    <h3 style="font-family:'Anton'; font-size:28px;">✅ Video Generated Successfully!</h3>
+    <p style="color:var(--paper); margin-bottom: 20px;">Your 50-minute word-to-word synced explanation video is ready.</p>
+    <button class="btn-generate" style="background:#2ecc71;" onclick="downloadMock()">
+      📥 Download Final Video (MP4)
+    </button>
+    <button class="btn-generate" style="background:var(--panel); border:1px solid var(--line); margin-top:10px; color:var(--paper);" onclick="location.reload()">
+      Create Another Video
+    </button>
+  </div>
+
+</div>
+
+<script>
+  // Drag and drop UI logic
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const fileNameDisplay = document.getElementById('file-name');
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, preventDefaults, false);
+  });
+
+  function preventDefaults (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    let dt = e.dataTransfer;
+    let files = dt.files;
+    handleFiles(files);
+  });
+
+  fileInput.addEventListener('change', function() {
+    handleFiles(this.files);
+  });
+
+  function handleFiles(files) {
+    if(files.length > 0) {
+      const file = files[0];
+      if(file.type.startsWith('video/')) {
+        fileNameDisplay.style.display = 'block';
+        fileNameDisplay.innerText = `Selected: ${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB)`;
+      } else {
+        alert("Please upload a valid video file.");
+      }
+    }
+  }
+
+  // Generation Mock Logic
+  function startGeneration() {
+    const script = document.getElementById('script-input').value.trim();
+    if(!script) {
+      alert("Please enter a Hindi explanation script first!");
+      return;
+    }
+
+    document.getElementById('creator-form').style.display = 'none';
+    document.getElementById('processing-ui').style.display = 'block';
+
+    simulateProgress();
+  }
+
+  function addLog(msg) {
+    const logBox = document.getElementById('log-box');
+    const p = document.createElement('p');
+    p.innerText = `> [${new Date().toLocaleTimeString()}] ${msg}`;
+    logBox.appendChild(p);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function simulateProgress() {
+    const stages = [
+      { progress: 5, text: "Uploading 50-min raw video to AI server...", time: 1000 },
+      { progress: 15, text: "Analyzing video scenes and cuts...", time: 2000 },
+      { progress: 30, text: "Generating realistic Hindi TTS audio...", time: 3000 },
+      { progress: 50, text: "Running Auto-Editor: Removing silent gaps...", time: 2500 },
+      { progress: 70, text: "Applying Word-to-Word sync algorithms...", time: 3500 },
+      { progress: 85, text: "Adding cinematic BGM and transitions...", time: 2000 },
+      { progress: 95, text: "Rendering final professional export...", time: 3000 },
+      { progress: 100, text: "Finalizing...", time: 1000 }
+    ];
+
+    let currentStage = 0;
+    const progressBar = document.getElementById('progress-bar');
+    const statusText = document.getElementById('status-text');
+
+    function processStage() {
+      if(currentStage >= stages.length) {
+        setTimeout(showResult, 500);
+        return;
+      }
+
+      const stage = stages[currentStage];
+      progressBar.style.width = stage.progress + '%';
+      statusText.innerText = stage.text;
+      addLog(stage.text);
+
+      setTimeout(() => {
+        currentStage++;
+        processStage();
+      }, stage.time);
+    }
+
+    processStage();
+  }
+
+  function showResult() {
+    document.getElementById('processing-ui').style.display = 'none';
+    document.getElementById('result-ui').style.display = 'block';
+  }
+
+  function downloadMock() {
+    alert("This is a frontend demo. In a real application, this would download the heavy AI-processed video file generated by the backend GPUs.");
+  }
+</script>
+</body>
+</html>
